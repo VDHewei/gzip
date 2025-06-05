@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"github.com/VDHewei/gzip/pkg/stream"
 	"github.com/urfave/cli/v2"
+	"log"
 	"os"
 )
 
@@ -15,6 +15,7 @@ func main() {
 		Version: version,
 		Usage:   "处理大型JSON文件的流式处理工具",
 		Commands: []*cli.Command{
+			stream.NewGzipCommand(),
 			stream.NewFilterCommand(),
 			stream.NewStatsCommand(),
 			stream.NewReplaceCommand(),
@@ -22,7 +23,6 @@ func main() {
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to run app: %v\n", err)
 	}
 }

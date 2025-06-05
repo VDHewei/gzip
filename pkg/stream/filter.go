@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/urfave/cli/v2"
-	"os"
-
 	"github.com/tidwall/gjson"
+	"github.com/urfave/cli/v2"
+	"io"
+	"log"
+	"os"
 )
 
 func NewFilterCommand() *cli.Command {
@@ -36,27 +37,38 @@ func NewFilterCommand() *cli.Command {
 				return fmt.Errorf("创建输出文件失败: %w", err)
 			}
 			defer writeFile.Close()
-
-			scanner := bufio.NewScanner(readFile)
+			var (
+				jsonBytes []byte
+				data      interface{}
+			)
+			jsonBytes, err = io.ReadAll(readFile)
+			if err != nil {
+				log.Fatalf("读取文件错误: %v\n", err)
+				return err
+			}
+			if err = json.Unmarshal(jsonBytes, &data); err != nil {
+				log.Fatalf("解析JSON错误: %v\n", err)
+				return err
+			}
+			if jsonBytes, err = json.Marshal(data); err != nil {
+				log.Fatalf("JSON压缩失败:%v\n", err)
+				return err
+			}
 			writer := bufio.NewWriter(writeFile)
 			defer writer.Flush()
-
-			for scanner.Scan() {
-				line := scanner.Text()
-				result := gjson.Get(line, jsonPath)
-				if !result.Exists() {
-					continue
-				}
-
-				jsonValue, _ := json.Marshal(result.Value())
-				_, err := writer.WriteString(string(jsonValue) + "\n")
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "写入文件错误: %v\n", err)
-					continue
-				}
+			// 读取所有行json字符串,并压缩
+			result := gjson.GetBytes(jsonBytes, jsonPath)
+			if !result.Exists() {
+				log.Printf("查找目标不存在,json_path: %s\n", jsonPath)
+				return nil
+			}
+			jsonValue, _ := json.Marshal(result.Value())
+			if _, err = writer.WriteString(string(jsonValue) + "\n"); err != nil {
+				log.Fatalf("写入文件错误: %v\n", err)
+				return err
 			}
 
-			return scanner.Err()
+			return nil
 		},
 	}
 }

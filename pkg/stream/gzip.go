@@ -17,14 +17,16 @@ func NewGzipCommand() *cli.Command {
 		Usage:   "压缩文件为gzip格式",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "input", Aliases: []string{"i"}, Required: true, Usage: "输入文件路径"},
-			&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Required: true, Usage: "输出文件路径"},
+			&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Required: false, Usage: "输出文件路径"},
 			&cli.IntFlag{Name: "level", Aliases: []string{"l"}, Value: gzip.BestSpeed, Usage: "压缩级别 (1-9)"},
 		},
 		Action: func(c *cli.Context) error {
 			inputFile := c.String("input")
 			outputFile := c.String("output")
 			level := c.Int("level")
-
+			if outputFile == "" {
+				outputFile = inputFile + ".gz"
+			}
 			// 验证压缩级别
 			if level < gzip.HuffmanOnly || level > gzip.BestCompression {
 				return fmt.Errorf("压缩级别必须在 %d-%d 之间", gzip.HuffmanOnly, gzip.BestCompression)

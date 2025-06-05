@@ -1,9 +1,11 @@
 package stream
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
 	"github.com/urfave/cli/v2"
+	"io"
+	"log"
 	"os"
 	"regexp"
 
@@ -29,24 +31,37 @@ func NewStatsCommand() *cli.Command {
 			}
 			defer readFile.Close()
 
-			scanner := bufio.NewScanner(readFile)
+			var (
+				jsonBytes []byte
+				data      interface{}
+			)
+			jsonBytes, err = io.ReadAll(readFile)
+			if err != nil {
+				log.Fatalf("读取文件错误: %v\n", err)
+				return err
+			}
+			if err = json.Unmarshal(jsonBytes, &data); err != nil {
+				log.Fatalf("解析JSON错误: %v\n", err)
+				return err
+			}
+			if jsonBytes, err = json.Marshal(data); err != nil {
+				log.Fatalf("JSON压缩失败:%v\n", err)
+				return err
+			}
 			totalCount := 0
-			objectRegex := regexp.MustCompile(`\{.*\}|\[.*\]`)
+			objectRegex := regexp.MustCompile(`\{.*\\}|\[.*\\]`)
 
-			for scanner.Scan() {
-				line := scanner.Text()
-				result := gjson.Get(line, jsonPath)
-				if !result.Exists() {
-					continue
-				}
-
-				// 提取数组内容中的对象或数组数量
-				matches := objectRegex.FindAllString(result.String(), -1)
-				totalCount += len(matches)
+			result := gjson.GetBytes(jsonBytes, jsonPath)
+			if !result.Exists() {
+				log.Printf("查找目标不存在,json_path: %s\n", jsonPath)
+				return nil
 			}
 
+			// 提取数组内容中的对象或数组数量
+			matches := objectRegex.FindAllString(result.String(), -1)
+			totalCount += len(matches)
 			fmt.Printf("匹配路径 '%s' 的数组元素总数: %d\n", jsonPath, totalCount)
-			return scanner.Err()
+			return nil
 		},
 	}
 }

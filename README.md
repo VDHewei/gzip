@@ -1,2 +1,2 @@
 # gzip
-cli for wirte golang gzip and json stream tools 
+cli for write in golang gzip and json stream tools 

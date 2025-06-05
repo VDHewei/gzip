@@ -2,10 +2,13 @@ package stream
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/urfave/cli/v2"
+	"io"
+	"log"
 	"os"
 )
 
@@ -38,31 +41,40 @@ func NewReplaceCommand() *cli.Command {
 			}
 			defer writeFile.Close()
 
-			scanner := bufio.NewScanner(readFile)
+			var (
+				jsonBytes []byte
+				data      interface{}
+			)
+			jsonBytes, err = io.ReadAll(readFile)
+			if err != nil {
+				log.Fatalf("读取文件错误: %v\n", err)
+				return err
+			}
+			if err = json.Unmarshal(jsonBytes, &data); err != nil {
+				log.Fatalf("解析JSON错误: %v\n", err)
+				return err
+			}
+			if jsonBytes, err = json.Marshal(data); err != nil {
+				log.Fatalf("JSON压缩失败:%v\n", err)
+				return err
+			}
 			writer := bufio.NewWriter(writeFile)
 			defer writer.Flush()
 
-			for scanner.Scan() {
-				line := scanner.Text()
-				result := gjson.Get(line, jsonPath)
-				if !result.Exists() {
-					_, err := writer.WriteString(line + "\n")
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "写入文件错误: %v\n", err)
-					}
-					continue
-				}
-
-				// 替换指定路径的值
-				modified, _ := sjson.Set(line, jsonPath, newValue)
-				_, err := writer.WriteString(modified + "\n")
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "写入文件错误: %v\n", err)
-					continue
+			result := gjson.GetBytes(jsonBytes, jsonPath)
+			if !result.Exists() {
+				if _, err = writer.Write(jsonBytes); err != nil {
+					log.Fatalf("写入文件错误: %v\n", err)
+					return err
 				}
 			}
-
-			return scanner.Err()
+			// 替换指定路径的值
+			modified, _ := sjson.SetBytes(jsonBytes, jsonPath, newValue)
+			if _, err = writer.Write(modified); err != nil {
+				log.Fatalf("写入文件错误: %v\n", err)
+				return err
+			}
+			return nil
 		},
 	}
 }

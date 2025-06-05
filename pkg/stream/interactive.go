@@ -5,7 +5,6 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/urfave/cli/v2"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -15,7 +14,7 @@ func NewInteractiveCommand() *cli.Command {
 		Aliases: []string{"i"},
 		Usage:   "启动实时交互模式处理JSON数据",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "input", Aliases: []string{"i"}, Required: true, Usage: "输入文件"},
+			&cli.StringFlag{Name: "input", Aliases: []string{"i"}, Required: false, Usage: "输入文件"},
 		},
 		Action: func(c *cli.Context) error {
 			inputFile := c.String("input")
@@ -34,6 +33,9 @@ func NewInteractiveCommand() *cli.Command {
 
 				parts := strings.SplitN(cmd, " ", 2)
 				if len(parts) < 2 {
+					if cmd == "exit" || cmd == "q" {
+						return nil
+					}
 					fmt.Println("无效命令格式。用法: [filter|replace|stats] [参数]")
 					continue
 				}
@@ -48,11 +50,11 @@ func NewInteractiveCommand() *cli.Command {
 				case "exit", "q":
 					return nil
 				default:
-					fmt.Println("未知命令:", parts[0])
+					log.Println("未知命令:", parts[0])
 					continue
 				}
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "执行错误: %v\n", err)
+					log.Fatalf("执行错误: %v\n", err)
 				}
 			}
 
