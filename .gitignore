@@ -1,0 +1,7 @@
+.idea/
+.vscode/
+logs/
+gzip.exe
+gzip.out
+gzip
+testdata/
